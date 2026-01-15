@@ -51,3 +51,4 @@ generated_reports/
 testing/
 testing.py
 metformin_data.csv
+venv
