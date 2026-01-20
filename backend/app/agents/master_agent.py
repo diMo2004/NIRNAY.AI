@@ -8,12 +8,12 @@ from app.utils.prompts import MASTER_AGENT_ROUTER_PROMPT, SYNTH_PROMPT
 from app.agents import (report_generator_agent, web_intel_agent)
 from app.config.settings import settings
 from openai import OpenAI
-
-
+# Initialize OpenAI client with Gemini API
 client = OpenAI(
     api_key=settings.GOOGLE_API_KEY,
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
+
 
 
 class MasterState(BaseModel):
@@ -30,24 +30,26 @@ def router_node(state: MasterState) -> dict:
     Routes the query to appropriate agents based on content analysis.
     Returns selected agents and reasoning.
     """
-    message = f"""You are an intelligent router agent. Analyze the following user query and determine which agents should handle it.
+    system_prompt = """You are an intelligent router agent. Analyze user queries and determine which agents should handle them.
 
 Available agents:
 1. Web Intelligence Agent - Gathers and analyzes information from web sources
 2. Report Generator Agent - Creates comprehensive reports based on data
 
-User Query: {state.query}
-
-{MASTER_AGENT_ROUTER_PROMPT}
-
 Respond in JSON format with:
-{{"selected_agents": ["agent_name1", "agent_name2"], "reason": "explanation"}}
-"""
+{"selected_agents": ["agent_name1", "agent_name2"], "reason": "explanation"}"""
+    
+    user_message = f"""Analyze this query and route it appropriately:
+
+Query: {state.query}
+
+{MASTER_AGENT_ROUTER_PROMPT}"""
     
     response = client.chat.completions.create(
-        model="gemini-1.5-flash",
+        model="gemini-3-flash-preview",
         messages=[
-            {"role": "user", "content": message}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
         ]
     )
     
@@ -82,31 +84,33 @@ def web_intel_node(state: MasterState) -> dict:
     web_result = web_intel_agent.run_web_intel_agent(state.query)
     
     results = state.results.copy()
-    results["web_intel"] = web_result
+    # Convert SynthOutput to dict for JSON serialization
+    results["web_intel"] = web_result.model_dump()
     
     return {"results": results}
 
 
-# def report_generator_node(state: MasterState) -> dict:
-#     """
-#     Calls the report generator agent to create a comprehensive report.
-#     """
-#     if "Report Generator Agent" not in state.selected_agents:
-#         return {"results": state.results}
+def report_generator_node(state: MasterState) -> dict:
+    """
+    Calls the report generator agent to create a comprehensive report.
+    """
+    if "Report Generator Agent" not in state.selected_agents:
+        return {"results": state.results}
     
-#     # Prepare context from previous results
-#     context = json.dumps(state.results) if state.results else "No previous data"
+    # Prepare context from previous results
+    context = json.dumps(state.results) if state.results else "No previous data"
     
-#     # Call report generator agent
-#     report_result = report_generator_agent.run_report_generator_agent(
-#         state.query, 
-#         context
-#     )
+    # Call report generator agent
+    report_result = report_generator_agent.run_report_generator_agent(
+        state.query, 
+        context
+    )
     
-#     results = state.results.copy()
-#     results["report"] = report_result
+    results = state.results.copy()
+    # Convert SynthOutput to dict for JSON serialization
+    results["report"] = report_result.model_dump()
     
-#     return {"results": results}
+    return {"results": results}
 
 
 def synthesizer_node(state: MasterState) -> dict:
@@ -115,22 +119,27 @@ def synthesizer_node(state: MasterState) -> dict:
     """
     results_context = json.dumps(state.results) if state.results else "No data available"
     
-    message = f"""You are a synthesis agent. Combine the following agent outputs into a comprehensive final response.
+    system_prompt = """You are a synthesis agent. Your job is to combine outputs from multiple agents into a comprehensive final response.
 
-User Query: {state.query}
+Always respond with JSON format:
+{"final_summary": "text", "recommendations": "text", "tables": [], "charts": []}"""
+    
+    user_message = f"""Synthesize these results for the query.
+
+Original Query: {state.query}
 
 Agent Results:
 {results_context}
 
 {SYNTH_PROMPT}
 
-Create a final summary with recommendations and any relevant tables or charts in JSON format.
-"""
+Provide a comprehensive final summary with recommendations."""
     
     response = client.chat.completions.create(
-        model="gemini-1.5-flash",
+        model="gemini-3-flash-preview",
         messages=[
-            {"role": "user", "content": message}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message}
         ]
     )
     
@@ -202,11 +211,28 @@ async def run_master_agent(query: str):
     state = MasterState(query=query)
     
     try:
-        # Run the workflow
+        # Run the workflow synchronously and return result
         final_state = master_chain.invoke(state)
-        return final_state.final_output
+        
+        # Handle both dict and object returns from invoke
+        if isinstance(final_state, dict):
+            final_output = final_state.get("final_output")
+        else:
+            final_output = final_state.final_output
+        
+        if final_output is None:
+            return SynthOutput(
+                final_summary="No output generated",
+                recommendations="Please try again with a different query.",
+                tables=[],
+                charts=[]
+            )
+        
+        return final_output
     except Exception as e:
         print(f"Error in master agent: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return SynthOutput(
             final_summary=f"Error processing query: {str(e)}",
             recommendations="Please try again with a different query.",
