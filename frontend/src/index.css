@@ -1,3 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* NIRNAY.AI Design System - Dark analytical theme */
+
+@layer base {
+    :root {
+        --background: 222 47% 11%;
+        --foreground: 210 40% 98%;
+
+        --card: 222 47% 14%;
+        --card-foreground: 210 40% 98%;
+
+        --popover: 222 47% 14%;
+        --popover-foreground: 210 40% 98%;
+
+        --primary: 217 91% 60%;
+        --primary-foreground: 222 47% 11%;
+
+        --secondary: 215 28% 17%;
+        --secondary-foreground: 210 40% 98%;
+
+        --muted: 215 28% 17%;
+        --muted-foreground: 215 20% 65%;
+
+        --accent: 217 91% 60%;
+        --accent-foreground: 222 47% 11%;
+
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 215 28% 20%;
+        --input: 215 28% 20%;
+        --ring: 217 91% 60%;
+
+        --radius: 0.75rem;
+
+        --sidebar-background: 222 47% 8%;
+        --sidebar-foreground: 210 40% 98%;
+        --sidebar-primary: 217 91% 60%;
+        --sidebar-primary-foreground: 222 47% 11%;
+        --sidebar-accent: 215 28% 17%;
+        --sidebar-accent-foreground: 210 40% 98%;
+        --sidebar-border: 215 28% 16%;
+        --sidebar-ring: 217 91% 60%;
+
+        /* Custom tokens */
+        --navbar-background: 222 47% 9%;
+        --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(250 91% 65%) 100%);
+        --gradient-card: linear-gradient(180deg, hsl(222 47% 16%) 0%, hsl(222 47% 12%) 100%);
+        --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.15);
+    }
+
+    .dark {
+        --background: 222 47% 11%;
+        --foreground: 210 40% 98%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground antialiased;
+        font-family: 'Inter', sans-serif;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-family: 'Space Grotesk', sans-serif;
+    }
+}
+
+@layer components {
+    .gradient-text {
+        @apply bg-clip-text text-transparent;
+        background-image: var(--gradient-primary);
+    }
+
+    .card-gradient {
+        background: var(--gradient-card);
+    }
+
+    .glow-shadow {
+        box-shadow: var(--shadow-glow);
+    }
+}
